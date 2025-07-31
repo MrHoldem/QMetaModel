@@ -1,0 +1,64 @@
+# === Qt ===
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.qmlproject.user
+*.autosave
+moc_*
+ui_*
+qrc_*
+
+# === Build directories ===
+build/
+Build/
+build-*/
+
+# === CMake ===
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+install_manifest.txt
+
+# === QtCreator specific ===
+*.creator.*
+.qmake.stash
+*.log
+
+# === VS Code / CLion ===
+.vscode/
+.idea/
+
+# === Compiled files ===
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.so
+*.so.*
+*.dll
+*.dylib
+*.lib
+*.exe
+*.out
+
+# === Generated files ===
+*.moc
+*.rcc
+*.qrc
+*.tmp
+*.bak
+*.swp
+*.~*
+
+# === YAML-CPP build ===
+external/yaml-cpp/build/
+
+# === System cruft ===
+.DS_Store
+Thumbs.db
+desktop.ini
