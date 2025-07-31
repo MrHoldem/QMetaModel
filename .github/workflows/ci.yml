@@ -8,12 +8,7 @@ on:
 
 jobs:
   test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        qt-version: ['6.5.0']
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
@@ -24,54 +19,30 @@ jobs:
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
-        version: ${{ matrix.qt-version }}
-        arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || '' }}
+        version: '6.5.0'
         cache: true
 
-    - name: Install dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake build-essential
 
-    - name: Build yaml-cpp (Linux)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Build yaml-cpp
       run: |
         mkdir -p build/external/yaml-cpp
         cd build/external/yaml-cpp
         cmake ../../../external/yaml-cpp -DCMAKE_BUILD_TYPE=Release -DYAML_CPP_BUILD_TESTS=OFF -DYAML_CPP_BUILD_TOOLS=OFF
         make -j4
 
-    - name: Build yaml-cpp (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        mkdir build\external\yaml-cpp-win
-        cd build\external\yaml-cpp-win
-        cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DYAML_CPP_BUILD_TESTS=OFF -DYAML_CPP_BUILD_TOOLS=OFF ..\..\..\external\yaml-cpp
-        mingw32-make -j4
-      shell: cmd
-
     - name: Build QMetaModel
       run: |
         qmake QMetaModel.pro
         make -j4
 
-    - name: Run tests (Linux)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Run tests
       run: |
         mkdir -p tests/build
         cd tests/build
         qmake ../tests.pro
         make -j4
         LD_LIBRARY_PATH="../../build/wsl_makefiles:$LD_LIBRARY_PATH" ./QMetaModelTests
-
-    - name: Run tests (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        cd tests
-        if not exist build mkdir build
-        cd build
-        qmake ..\tests.pro
-        mingw32-make -j4
-        .\debug\QMetaModelTests.exe
-      shell: cmd

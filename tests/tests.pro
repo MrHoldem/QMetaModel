@@ -24,15 +24,11 @@ win32 {
     LIBS += $$PWD/../build/external/yaml-cpp/libyaml-cpp.a
 }
 
-# Путь к собранной библиотеке (статическая линковка для WSL)
+# Путь к собранной библиотеке 
 unix {
     # В WSL библиотека собирается в build/wsl_makefiles/
     LIBS += $$PWD/../build/wsl_makefiles/libQMetaModel.so
 } else {
-    # Windows - используем обычную схему
-    contains(CONFIG, debug, debug|release) {
-        LIBS += -L$$OUT_PWD/../src/debug -lQMetaModel
-    } else {
-        LIBS += -L$$OUT_PWD/../src/release -lQMetaModel
-    }
+    # Windows - используем статическую библиотеку из основной директории сборки
+    LIBS += $$PWD/../libQMetaModel.a
 }
