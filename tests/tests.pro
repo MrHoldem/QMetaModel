@@ -26,8 +26,8 @@ win32 {
 
 # Путь к собранной библиотеке 
 unix {
-    # В WSL библиотека собирается в build/wsl_makefiles/
-    LIBS += $$PWD/../build/wsl_makefiles/libQMetaModel.so
+    # Библиотека собирается в src/
+    LIBS += $$PWD/../src/libQMetaModel.so
 } else {
     # Windows - используем статическую библиотеку из основной директории сборки
     LIBS += $$PWD/../libQMetaModel.a
