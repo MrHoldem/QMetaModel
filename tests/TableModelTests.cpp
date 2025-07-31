@@ -158,21 +158,20 @@ ModelSchema TableModelTests::createExpectedAlbumSchema()
     schema.isEditable = true;
     
     // Заголовки
-    schema.horizontalHeaders = {"Название", "Цель", "Дата создания"};
+    schema.horizontalHeaders.type = HeaderType::Custom;
+    schema.horizontalHeaders.customLabels = {"Название", "Цель", "Дата создания"};
     
     // Колонки
     Column idColumn;
     idColumn.name = "id";
     idColumn.type = ColumnType::Uuid;
     idColumn.isPrimaryKey = true;
-    idColumn.isVisible = false;
     schema.columns.append(idColumn);
     schema.primaryKeyColumns.append("id");
     
     Column titleColumn;
     titleColumn.name = "title";
     titleColumn.type = ColumnType::String;
-    titleColumn.isVisible = true;
     titleColumn.isEditable = true;
     titleColumn.tooltip = "Название альбома";
     schema.columns.append(titleColumn);
@@ -180,7 +179,6 @@ ModelSchema TableModelTests::createExpectedAlbumSchema()
     Column goalColumn;
     goalColumn.name = "goal";
     goalColumn.type = ColumnType::String;
-    goalColumn.isVisible = true;
     goalColumn.isEditable = true;
     goalColumn.tooltip = "Цель альбома";
     goalColumn.validator.type = ValidatorType::Regexp;
@@ -190,7 +188,6 @@ ModelSchema TableModelTests::createExpectedAlbumSchema()
     Column createdAtColumn;
     createdAtColumn.name = "created_at";
     createdAtColumn.type = ColumnType::DateTime;
-    createdAtColumn.isVisible = true;
     createdAtColumn.isEditable = false;
     createdAtColumn.tooltip = "Дата создания альбома";
     createdAtColumn.alignment = TextAlignment::Center;
@@ -295,7 +292,6 @@ void TableModelTests::compareSchemas(const ModelSchema& expected, const ModelSch
         
         QCOMPARE(actualCol.name, expectedCol.name);
         QCOMPARE(actualCol.type, expectedCol.type);
-        QCOMPARE(actualCol.isVisible, expectedCol.isVisible);
         QCOMPARE(actualCol.isEditable, expectedCol.isEditable);
         QCOMPARE(actualCol.isPrimaryKey, expectedCol.isPrimaryKey);
         QCOMPARE(actualCol.tooltip, expectedCol.tooltip);

@@ -169,6 +169,15 @@ struct HeaderSettings {
     bool isEnumerated = false; // For numeric headers
 
     HeaderSettings& operator=(const QString& value);
+    
+    bool operator==(const HeaderSettings& other) const {
+        return type == other.type &&
+               customLabels == other.customLabels &&
+               startIndex == other.startIndex &&
+               startLetter == other.startLetter &&
+               tooltip == other.tooltip &&
+               isEnumerated == other.isEnumerated;
+    }
 };
 
 struct ErrorHandlingSettings {
