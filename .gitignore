@@ -54,9 +54,17 @@ install_manifest.txt
 *.bak
 *.swp
 *.~*
+external/*
+CLAUDE.md
+.claude/
+market_analysis.md
 
-# === YAML-CPP build ===
+# === YAML-CPP build files (should not be in repo) ===
 external/yaml-cpp/build/
+external/yaml-cpp/build_linux/
+external/yaml-cpp/CMakeCache.txt
+external/yaml-cpp/CMakeFiles/
+external/yaml-cpp/Makefile
 
 # === System cruft ===
 .DS_Store

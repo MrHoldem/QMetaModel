@@ -1,14 +1,9 @@
-QT += core
+TEMPLATE = subdirs
+CONFIG += ordered
 
-TEMPLATE = lib
-CONFIG += c++17
-TARGET = QMetaModel
+SUBDIRS += \
+    src \
+    tests \
 
-include(QMetaModel.pri)
-
-SUBDIRS += external/yaml-cpp \
-           src
-
-# yaml-cpp integration
-INCLUDEPATH += $$PWD/external/yaml-cpp/include
-LIBS += -L$$PWD/external/yaml-cpp/build -lyaml-cpp
+# tests зависит от src
+tests.depends = src

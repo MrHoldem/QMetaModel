@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.5.0'
+        cache: true
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+
+    - name: Build yaml-cpp
+      run: |
+        mkdir -p build/external/yaml-cpp
+        cd build/external/yaml-cpp
+        cmake ../../../external/yaml-cpp -DCMAKE_BUILD_TYPE=Release -DYAML_CPP_BUILD_TESTS=OFF -DYAML_CPP_BUILD_TOOLS=OFF
+        make -j4
+
+    - name: Build QMetaModel
+      run: |
+        qmake QMetaModel.pro
+        make -j4
+
+    - name: Run tests
+      run: |
+        mkdir -p tests/build
+        cd tests/build
+        qmake ../tests.pro
+        make -j4
+        LD_LIBRARY_PATH="../../src:$LD_LIBRARY_PATH" ./QMetaModelTests
