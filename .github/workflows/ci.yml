@@ -45,4 +45,4 @@ jobs:
         cd tests/build
         qmake ../tests.pro
         make -j4
-        LD_LIBRARY_PATH="../../build/wsl_makefiles:$LD_LIBRARY_PATH" ./QMetaModelTests
+        LD_LIBRARY_PATH="../../src:$LD_LIBRARY_PATH" ./QMetaModelTests
