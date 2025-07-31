@@ -67,12 +67,13 @@ QStringList ModelSchema::validate() const {
         }
     }
     
-    // Check horizontal headers count matches visible columns
-    QStringList visibleColumns = getVisibleColumns();
-    if (!horizontalHeaders.isEmpty() && horizontalHeaders.size() != visibleColumns.size()) {
-        errors << QString("Horizontal headers count (%1) doesn't match visible columns count (%2)")
-                  .arg(horizontalHeaders.size())
-                  .arg(visibleColumns.size());
+    // Check horizontal headers count matches visible columns (только для Custom типа)
+    if (horizontalHeaders.type == HeaderType::Custom && 
+        !horizontalHeaders.customLabels.isEmpty() && 
+        horizontalHeaders.customLabels.size() != columns.size()) {
+        errors << QString("Horizontal headers count (%1) doesn't match columns count (%2)")
+                  .arg(horizontalHeaders.customLabels.size())
+                  .arg(columns.size());
     }
 
     // Check loadQuery exists
@@ -165,11 +166,13 @@ void ModelSchema::addColumn(const Column& column) {
         primaryKeyColumns.append(column.name);
     }
     
-    // Update horizontal headers if needed
-    if (column.isVisible && !column.displayName.isEmpty()) {
-        horizontalHeaders.append(column.displayName);
-    } else if (column.isVisible) {
-        horizontalHeaders.append(column.name);
+    // Update horizontal headers if needed (только для Custom типа)
+    if (horizontalHeaders.type == HeaderType::Custom) {
+        if (!column.displayName.isEmpty()) {
+            horizontalHeaders.customLabels.append(column.displayName);
+        } else {
+            horizontalHeaders.customLabels.append(column.name);
+        }
     }
     
     modifiedAt = QDateTime::currentDateTime();
@@ -187,13 +190,13 @@ void ModelSchema::removeColumn(const QString& columnName) {
     // Remove from primary key list
     primaryKeyColumns.removeAll(columnName);
     
-    // Update horizontal headers
-    // This is simplified - in real implementation you'd need to track header positions
-    for (int i = 0; i < horizontalHeaders.size(); ++i) {
-        // This is a simplified check - you might want to store column-to-header mapping
-        if (horizontalHeaders[i] == columnName) {
-            horizontalHeaders.removeAt(i);
-            break;
+    // Update horizontal headers (только для Custom типа)
+    if (horizontalHeaders.type == HeaderType::Custom) {
+        for (int i = 0; i < horizontalHeaders.customLabels.size(); ++i) {
+            if (horizontalHeaders.customLabels[i] == columnName) {
+                horizontalHeaders.customLabels.removeAt(i);
+                break;
+            }
         }
     }
     
@@ -227,20 +230,11 @@ void ModelSchema::removeQuery(const QString& name) {
     modifiedAt = QDateTime::currentDateTime();
 }
 
-QStringList ModelSchema::getVisibleColumns() const {
-    QStringList visibleColumns;
-    for (const auto& column : columns) {
-        if (column.isVisible) {
-            visibleColumns.append(column.name);
-        }
-    }
-    return visibleColumns;
-}
 
 QStringList ModelSchema::getEditableColumns() const {
     QStringList editableColumns;
     for (const auto& column : columns) {
-        if (column.isEditable && column.isVisible) {
+        if (column.isEditable) {
             editableColumns.append(column.name);
         }
     }
@@ -268,10 +262,9 @@ HeaderSettings& HeaderSettings::operator=(const QString& str) {
         return *this;
     }
     
-    // Если строка "invisible"
+    // Если строка "invisible" - больше не поддерживается
     if (str.toLower() == "invisible") {
-        type = HeaderType::Invisible;
-        isVisible = false;
+        // Игнорируем, так как убрали поддержку невидимых заголовков
         return *this;
     }
     

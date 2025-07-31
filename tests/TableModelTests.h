@@ -13,6 +13,7 @@
 // Используем полные имена для избежания конфликтов
 using QForge::nsModel::ModelCore;
 using QForge::nsModel::QueryResult;
+using QForge::HeaderType;
 using QForge::nsModel::QueryContext;
 using QForge::ModelSchema;
 using QForge::Column;

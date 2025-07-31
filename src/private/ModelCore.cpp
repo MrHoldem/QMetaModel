@@ -53,8 +53,7 @@ static ErrorHandling stringToErrorHandling(const QString& errorStr) {
     static const QHash<QString, ErrorHandling> errorMap = {
         {"show_message", ErrorHandling::ShowMessage},
         {"ignore", ErrorHandling::Ignore},
-        {"log", ErrorHandling::Log},
-        {"callback", ErrorHandling::Callback}
+        {"log", ErrorHandling::Log}
     };
     return errorMap.value(errorStr.toLower(), ErrorHandling::ShowMessage);
 }
@@ -76,6 +75,12 @@ static ModelType stringToModelType(const QString& typeStr) {
 
 static DataSource stringToDataSource(const QString& sourceStr) {
     return (sourceStr.toLower() == "manual") ? DataSource::Manual : DataSource::Query;
+}
+
+static bool isValidHeaderLetter(const QString& letter) {
+    if (letter.length() != 1) return false;
+    QChar ch = letter[0].toUpper();
+    return ch >= 'A' && ch <= 'Z';
 }
 
 // ========== CONSTRUCTORS ==========
@@ -104,7 +109,7 @@ ModelCore::ModelCore(const ModelSchema& modelSchema, const QueryHandler& handler
 // ========== PUBLIC METHODS ==========
 
 bool ModelCore::isValid() const {
-    return isValidFlag;
+    return isValidFlag && errors_log.isEmpty();
 }
 
 QueryResult ModelCore::execute(const QString& queryId, const QVariantMap& params) const {
@@ -156,11 +161,23 @@ QJsonObject ModelCore::getJsonSchema() const {
     schemaJson["load_query"] = schema->loadQuery;
     
     // Headers
-    QJsonArray horizontalHeaders;
-    for (const QString& header : schema->horizontalHeaders) {
-        horizontalHeaders.append(header);
+    if (schema->horizontalHeaders.type == HeaderType::Custom) {
+        QJsonArray horizontalHeaders;
+        for (const QString& header : schema->horizontalHeaders.customLabels) {
+            horizontalHeaders.append(header);
+        }
+        schemaJson["horizontal_headers"] = horizontalHeaders;
+    } else {
+        QJsonObject horizontalHeaders;
+        if (schema->horizontalHeaders.type == HeaderType::Numeric) {
+            horizontalHeaders["type"] = "numeric";
+            horizontalHeaders["start"] = schema->horizontalHeaders.startIndex;
+        } else if (schema->horizontalHeaders.type == HeaderType::Alphabetic) {
+            horizontalHeaders["type"] = "alphabetic";
+            horizontalHeaders["start"] = schema->horizontalHeaders.startLetter;
+        }
+        schemaJson["horizontal_headers"] = horizontalHeaders;
     }
-    schemaJson["horizontal_headers"] = horizontalHeaders;
     
     // Columns
     QJsonArray columnsArray;
@@ -168,7 +185,6 @@ QJsonObject ModelCore::getJsonSchema() const {
         QJsonObject columnObj;
         columnObj["name"] = column.name;
         columnObj["type"] = static_cast<int>(column.type); // You might want to convert to string
-        columnObj["is_visible"] = column.isVisible;
         columnObj["is_editable"] = column.isEditable;
         columnObj["is_primary_key"] = column.isPrimaryKey;
         if (!column.tooltip.isEmpty()) {
@@ -321,10 +337,60 @@ bool ModelCore::parseYaml(const QString& content) {
         }
 
         // Parse horizontal headers
-        if (root["horizontal_headers"] && root["horizontal_headers"].IsSequence()) {
-            schema->horizontalHeaders.clear();
-            for (const auto& header : root["horizontal_headers"]) {
-                schema->horizontalHeaders.append(QString::fromStdString(header.as<std::string>()));
+        if (root["horizontal_headers"]) {
+            if (root["horizontal_headers"].IsSequence()) {
+                // Старый формат: horizontal_headers: ["ID", "Name", "Price"]
+                schema->horizontalHeaders.type = HeaderType::Custom;
+                schema->horizontalHeaders.customLabels.clear();
+                for (const auto& header : root["horizontal_headers"]) {
+                    schema->horizontalHeaders.customLabels.append(QString::fromStdString(header.as<std::string>()));
+                }
+            } else if (root["horizontal_headers"].IsScalar()) {
+                // Простой формат: horizontal_headers: 1 или horizontal_headers: "A"
+                try {
+                    schema->horizontalHeaders.startIndex = root["horizontal_headers"].as<int>();
+                    schema->horizontalHeaders.type = HeaderType::Numeric;
+                } catch (...) {
+                    // Try as string for letter format: horizontal_headers: "A"
+                    QString value = QString::fromStdString(root["horizontal_headers"].as<std::string>());
+                    if (isValidHeaderLetter(value)) {
+                        schema->horizontalHeaders.type = HeaderType::Alphabetic;
+                        schema->horizontalHeaders.startLetter = value.toUpper();
+                    } else {
+                        errors_log.append(QString("Invalid horizontal header letter '%1'. Only A-Z are allowed.").arg(value));
+                    }
+                }
+            } else if (root["horizontal_headers"].IsMap()) {
+                // Сложный формат: horizontal_headers: { type: "numeric", start: 1 }
+                const auto& hhNode = root["horizontal_headers"];
+                if (hhNode["type"]) {
+                    QString typeStr = QString::fromStdString(hhNode["type"].as<std::string>());
+                    if (typeStr.toLower() == "numeric") {
+                        schema->horizontalHeaders.type = HeaderType::Numeric;
+                    } else if (typeStr.toLower() == "alphabetic") {
+                        schema->horizontalHeaders.type = HeaderType::Alphabetic;
+                    } else if (typeStr.toLower() == "custom") {
+                        schema->horizontalHeaders.type = HeaderType::Custom;
+                    }
+                }
+                if (hhNode["start"]) {
+                    try {
+                        schema->horizontalHeaders.startIndex = hhNode["start"].as<int>();
+                    } catch (...) {
+                        QString startStr = QString::fromStdString(hhNode["start"].as<std::string>());
+                        if (isValidHeaderLetter(startStr)) {
+                            schema->horizontalHeaders.startLetter = startStr.toUpper();
+                        } else {
+                            errors_log.append(QString("Invalid horizontal header start letter '%1'. Only A-Z are allowed.").arg(startStr));
+                        }
+                    }
+                }
+                if (hhNode["labels"] && hhNode["labels"].IsSequence()) {
+                    schema->horizontalHeaders.customLabels.clear();
+                    for (const auto& label : hhNode["labels"]) {
+                        schema->horizontalHeaders.customLabels.append(QString::fromStdString(label.as<std::string>()));
+                    }
+                }
             }
         }
 
@@ -342,9 +408,6 @@ bool ModelCore::parseYaml(const QString& content) {
                     column.type = stringToColumnType(QString::fromStdString(colNode["type"].as<std::string>()));
                 }
                 
-                if (colNode["is_visible"]) {
-                    column.isVisible = colNode["is_visible"].as<bool>();
-                }
                 
                 if (colNode["is_editable"]) {
                     column.isEditable = colNode["is_editable"].as<bool>();
@@ -373,6 +436,28 @@ bool ModelCore::parseYaml(const QString& content) {
                     }
                     if (validatorNode["pattern"]) {
                         column.validator.pattern = QString::fromStdString(validatorNode["pattern"].as<std::string>());
+                    }
+                    if (validatorNode["min"]) {
+                        try {
+                            QString minStr = QString::fromStdString(validatorNode["min"].as<std::string>());
+                            column.validator.range.min = QVariant(minStr.toDouble());
+                            column.validator.length.minLength = minStr.toInt();
+                        } catch (...) {
+                            // Fallback for numeric values
+                            column.validator.range.min = QVariant(validatorNode["min"].as<double>());
+                            column.validator.length.minLength = validatorNode["min"].as<int>();
+                        }
+                    }
+                    if (validatorNode["max"]) {
+                        try {
+                            QString maxStr = QString::fromStdString(validatorNode["max"].as<std::string>());
+                            column.validator.range.max = QVariant(maxStr.toDouble());
+                            column.validator.length.maxLength = maxStr.toInt();
+                        } catch (...) {
+                            // Fallback for numeric values
+                            column.validator.range.max = QVariant(validatorNode["max"].as<double>());
+                            column.validator.length.maxLength = validatorNode["max"].as<int>();
+                        }
                     }
                 }
                 
@@ -450,10 +535,58 @@ bool ModelCore::parseYaml(const QString& content) {
             }
         }
 
-        // Parse additional settings
-        if (root["callback_is_required"]) {
-            schema->callbackIsRequired = root["callback_is_required"].as<bool>();
+        // Parse vertical headers
+        if (root["vertical_headers"]) {
+            if (root["vertical_headers"].IsScalar()) {
+                // Simple numeric format: vertical_headers: 2
+                try {
+                    schema->verticalHeaders.startIndex = root["vertical_headers"].as<int>();
+                    schema->verticalHeaders.type = HeaderType::Numeric;
+                } catch (...) {
+                    // Try as string for letter format: vertical_headers: "B"
+                    QString value = QString::fromStdString(root["vertical_headers"].as<std::string>());
+                    if (isValidHeaderLetter(value)) {
+                        schema->verticalHeaders.type = HeaderType::Alphabetic;
+                        schema->verticalHeaders.startLetter = value.toUpper();
+                    } else {
+                        errors_log.append(QString("Invalid vertical header letter '%1'. Only A-Z are allowed.").arg(value));
+                    }
+                }
+            } else if (root["vertical_headers"].IsMap()) {
+                // Complex format: vertical_headers: { type: "numeric", start: 2 }
+                const auto& vhNode = root["vertical_headers"];
+                if (vhNode["type"]) {
+                    QString typeStr = QString::fromStdString(vhNode["type"].as<std::string>());
+                    if (typeStr.toLower() == "numeric") {
+                        schema->verticalHeaders.type = HeaderType::Numeric;
+                    } else if (typeStr.toLower() == "alphabetic") {
+                        schema->verticalHeaders.type = HeaderType::Alphabetic;
+                    } else if (typeStr.toLower() == "custom") {
+                        schema->verticalHeaders.type = HeaderType::Custom;
+                    }
+                }
+                if (vhNode["start"]) {
+                    try {
+                        schema->verticalHeaders.startIndex = vhNode["start"].as<int>();
+                    } catch (...) {
+                        QString startStr = QString::fromStdString(vhNode["start"].as<std::string>());
+                        if (isValidHeaderLetter(startStr)) {
+                            schema->verticalHeaders.startLetter = startStr.toUpper();
+                        } else {
+                            errors_log.append(QString("Invalid vertical header start letter '%1'. Only A-Z are allowed.").arg(startStr));
+                        }
+                    }
+                }
+                if (vhNode["labels"] && vhNode["labels"].IsSequence()) {
+                    schema->verticalHeaders.customLabels.clear();
+                    for (const auto& label : vhNode["labels"]) {
+                        schema->verticalHeaders.customLabels.append(QString::fromStdString(label.as<std::string>()));
+                    }
+                }
+            }
         }
+
+        // Parse additional settings
         
         if (root["default_row_tooltip"]) {
             schema->defaultRowTooltip = QString::fromStdString(root["default_row_tooltip"].as<std::string>());
@@ -512,11 +645,62 @@ bool ModelCore::parseJson(const QString& content) {
     }
     
     // Parse horizontal headers
-    if (root.contains("horizontal_headers") && root["horizontal_headers"].isArray()) {
-        schema->horizontalHeaders.clear();
-        QJsonArray headersArray = root["horizontal_headers"].toArray();
-        for (const QJsonValue& headerValue : headersArray) {
-            schema->horizontalHeaders.append(headerValue.toString());
+    if (root.contains("horizontal_headers")) {
+        QJsonValue hhValue = root["horizontal_headers"];
+        if (hhValue.isArray()) {
+            // Старый формат: horizontal_headers: ["ID", "Name", "Price"]
+            schema->horizontalHeaders.type = HeaderType::Custom;
+            schema->horizontalHeaders.customLabels.clear();
+            QJsonArray headersArray = hhValue.toArray();
+            for (const QJsonValue& headerValue : headersArray) {
+                schema->horizontalHeaders.customLabels.append(headerValue.toString());
+            }
+        } else if (hhValue.isDouble()) {
+            // Простой числовой формат: horizontal_headers: 1
+            schema->horizontalHeaders.startIndex = hhValue.toInt();
+            schema->horizontalHeaders.type = HeaderType::Numeric;
+        } else if (hhValue.isString()) {
+            // Буквенный формат: horizontal_headers: "A"
+            QString value = hhValue.toString();
+            if (isValidHeaderLetter(value)) {
+                schema->horizontalHeaders.type = HeaderType::Alphabetic;
+                schema->horizontalHeaders.startLetter = value.toUpper();
+            } else {
+                errors_log.append(QString("Invalid horizontal header letter '%1'. Only A-Z are allowed.").arg(value));
+            }
+        } else if (hhValue.isObject()) {
+            // Сложный формат: horizontal_headers: { type: "numeric", start: 1 }
+            QJsonObject hhObj = hhValue.toObject();
+            if (hhObj.contains("type")) {
+                QString typeStr = hhObj["type"].toString();
+                if (typeStr.toLower() == "numeric") {
+                    schema->horizontalHeaders.type = HeaderType::Numeric;
+                } else if (typeStr.toLower() == "alphabetic") {
+                    schema->horizontalHeaders.type = HeaderType::Alphabetic;
+                } else if (typeStr.toLower() == "custom") {
+                    schema->horizontalHeaders.type = HeaderType::Custom;
+                }
+            }
+            if (hhObj.contains("start")) {
+                QJsonValue startValue = hhObj["start"];
+                if (startValue.isDouble()) {
+                    schema->horizontalHeaders.startIndex = startValue.toInt();
+                } else if (startValue.isString()) {
+                    QString startStr = startValue.toString();
+                    if (isValidHeaderLetter(startStr)) {
+                        schema->horizontalHeaders.startLetter = startStr.toUpper();
+                    } else {
+                        errors_log.append(QString("Invalid horizontal header start letter '%1'. Only A-Z are allowed.").arg(startStr));
+                    }
+                }
+            }
+            if (hhObj.contains("labels") && hhObj["labels"].isArray()) {
+                schema->horizontalHeaders.customLabels.clear();
+                QJsonArray labelsArray = hhObj["labels"].toArray();
+                for (const QJsonValue& labelValue : labelsArray) {
+                    schema->horizontalHeaders.customLabels.append(labelValue.toString());
+                }
+            }
         }
     }
 
@@ -533,7 +717,6 @@ bool ModelCore::parseJson(const QString& content) {
             
             column.name = colObj["name"].toString();
             column.type = stringToColumnType(colObj["type"].toString());
-            column.isVisible = colObj.value("is_visible").toBool(true);
             column.isEditable = colObj.value("is_editable").toBool(true);
             column.isPrimaryKey = colObj.value("is_primary_key").toBool(false);
             column.tooltip = colObj.value("tooltip").toString();
@@ -548,6 +731,14 @@ bool ModelCore::parseJson(const QString& content) {
                 QJsonObject validatorObj = colObj["validator"].toObject();
                 column.validator.type = stringToValidatorType(validatorObj["type"].toString());
                 column.validator.pattern = validatorObj["pattern"].toString();
+                if (validatorObj.contains("min")) {
+                    column.validator.range.min = QVariant(validatorObj["min"].toDouble());
+                    column.validator.length.minLength = validatorObj["min"].toInt();
+                }
+                if (validatorObj.contains("max")) {
+                    column.validator.range.max = QVariant(validatorObj["max"].toDouble());
+                    column.validator.length.maxLength = validatorObj["max"].toInt();
+                }
             }
             
             schema->columns.append(column);
@@ -613,10 +804,59 @@ bool ModelCore::parseJson(const QString& content) {
         schema->defaultErrorHandling.message = errorObj.value("message").toString();
     }
     
-    // Parse other settings
-    if (root.contains("callback_is_required")) {
-        schema->callbackIsRequired = root["callback_is_required"].toBool();
+    // Parse vertical headers
+    if (root.contains("vertical_headers")) {
+        QJsonValue vhValue = root["vertical_headers"];
+        if (vhValue.isDouble()) {
+            // Simple numeric format: vertical_headers: 2
+            schema->verticalHeaders.startIndex = vhValue.toInt();
+            schema->verticalHeaders.type = HeaderType::Numeric;
+        } else if (vhValue.isString()) {
+            // Letter format: vertical_headers: "B"
+            QString value = vhValue.toString();
+            if (isValidHeaderLetter(value)) {
+                schema->verticalHeaders.type = HeaderType::Alphabetic;
+                schema->verticalHeaders.startLetter = value.toUpper();
+            } else {
+                errors_log.append(QString("Invalid vertical header letter '%1'. Only A-Z are allowed.").arg(value));
+            }
+        } else if (vhValue.isObject()) {
+            // Complex format: vertical_headers: { type: "numeric", start: 2 }
+            QJsonObject vhObj = vhValue.toObject();
+            if (vhObj.contains("type")) {
+                QString typeStr = vhObj["type"].toString();
+                if (typeStr.toLower() == "numeric") {
+                    schema->verticalHeaders.type = HeaderType::Numeric;
+                } else if (typeStr.toLower() == "alphabetic") {
+                    schema->verticalHeaders.type = HeaderType::Alphabetic;
+                } else if (typeStr.toLower() == "custom") {
+                    schema->verticalHeaders.type = HeaderType::Custom;
+                }
+            }
+            if (vhObj.contains("start")) {
+                QJsonValue startValue = vhObj["start"];
+                if (startValue.isDouble()) {
+                    schema->verticalHeaders.startIndex = startValue.toInt();
+                } else if (startValue.isString()) {
+                    QString startStr = startValue.toString();
+                    if (isValidHeaderLetter(startStr)) {
+                        schema->verticalHeaders.startLetter = startStr.toUpper();
+                    } else {
+                        errors_log.append(QString("Invalid vertical header start letter '%1'. Only A-Z are allowed.").arg(startStr));
+                    }
+                }
+            }
+            if (vhObj.contains("labels") && vhObj["labels"].isArray()) {
+                schema->verticalHeaders.customLabels.clear();
+                QJsonArray labelsArray = vhObj["labels"].toArray();
+                for (const QJsonValue& labelValue : labelsArray) {
+                    schema->verticalHeaders.customLabels.append(labelValue.toString());
+                }
+            }
+        }
     }
+
+    // Parse other settings
     
     if (root.contains("default_row_tooltip")) {
         schema->defaultRowTooltip = root["default_row_tooltip"].toString();
