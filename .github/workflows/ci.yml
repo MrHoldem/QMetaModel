@@ -29,9 +29,9 @@ jobs:
 
     - name: Build yaml-cpp
       run: |
-        mkdir -p build/external/yaml-cpp
-        cd build/external/yaml-cpp
-        cmake ../../../external/yaml-cpp -DCMAKE_BUILD_TYPE=Release -DYAML_CPP_BUILD_TESTS=OFF -DYAML_CPP_BUILD_TOOLS=OFF
+        mkdir -p external/yaml-cpp/build_linux
+        cd external/yaml-cpp/build_linux
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DYAML_CPP_BUILD_TESTS=OFF -DYAML_CPP_BUILD_TOOLS=OFF
         make -j4
 
     - name: Build QMetaModel
