@@ -41,8 +41,8 @@ columns:
     tooltip: "Цена в долларах"
     validator:
       type: range
-      min: 0.01
-      max: 99999.99
+      min: "0.01"
+      max: "99999.99"
 
   - name: quantity
     type: integer

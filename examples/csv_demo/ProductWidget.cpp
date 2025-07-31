@@ -77,6 +77,11 @@ ProductWidget::ProductWidget(QWidget *parent)
     
     tableView->setModel(model);
     
+    // Подключаем сигналы асинхронного выполнения (старый синтаксис для совместимости)
+    connect(model, SIGNAL(executionStarted(QUuid)), this, SLOT(onQueryStarted(QUuid)));
+    connect(model, SIGNAL(executionFinished(QUuid)), this, SLOT(onQueryFinished(QUuid)));
+    connect(model, SIGNAL(executionFailed(QUuid,QString)), this, SLOT(onQueryFailed(QUuid,QString)));
+    
     // Настраиваем внешний вид таблицы
     tableView->setAlternatingRowColors(true);
     tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -85,8 +90,13 @@ ProductWidget::ProductWidget(QWidget *parent)
     // Скрываем ID колонку (индекс 0)
     tableView->hideColumn(0);
     
-    // Загружаем данные при старте
-    onLoadAllClicked();
+    // Загружаем данные при старте (синхронно, чтобы не блокировать UI)
+    auto result = model->execute("load_all");
+    if (result.ok) {
+        statusLabel->setText(QString("Загружено записей: %1").arg(result.rows.size()));
+    } else {
+        statusLabel->setText("Ошибка загрузки: " + result.errors_log.join(", "));
+    }
 }
 
 ProductWidget::~ProductWidget()
@@ -126,6 +136,18 @@ void ProductWidget::setupUi()
     statusLabel = new QLabel("Готов к работе", this);
     mainLayout->addWidget(statusLabel);
     
+    // Прогресс бар (скрыт по умолчанию)
+    progressBar = new QProgressBar(this);
+    progressBar->setRange(0, 0); // Неопределенный прогресс
+    progressBar->setFormat("Выполняется запрос... %p%");
+    progressBar->setAlignment(Qt::AlignCenter);
+    progressBar->setMinimumHeight(30);
+    progressBar->hide();
+    mainLayout->addWidget(progressBar);
+    
+    // Таймер для анимации прогресса
+    progressTimer = new QTimer(this);
+    
     setWindowTitle("Демо: Продукты из CSV");
     resize(900, 600);
 }
@@ -140,24 +162,26 @@ void ProductWidget::connectSignals()
 
 void ProductWidget::onLoadAllClicked()
 {
-    auto result = model->execute("load_all");
+    statusLabel->setText("Загрузка всех данных...");
     
-    if (result.ok) {
-        statusLabel->setText(QString("Загружено записей: %1").arg(result.rows.size()));
-    } else {
-        statusLabel->setText("Ошибка загрузки: " + result.errors_log.join(", "));
-    }
+    // Полная блокировка интерфейса
+    setEnabled(false);
+    progressBar->setFormat("Загрузка всех данных из CSV...");
+    progressBar->show();
+    
+    model->executeAsync("load_all");
 }
 
 void ProductWidget::onFilterInStockClicked()
 {
-    auto result = model->execute("filter_in_stock");
+    statusLabel->setText("Фильтрация по наличию...");
     
-    if (result.ok) {
-        statusLabel->setText(QString("Товаров в наличии: %1").arg(result.rows.size()));
-    } else {
-        statusLabel->setText("Ошибка фильтрации: " + result.errors_log.join(", "));
-    }
+    // Полная блокировка интерфейса
+    setEnabled(false);
+    progressBar->setFormat("Поиск товаров в наличии...");
+    progressBar->show();
+    
+    model->executeAsync("filter_in_stock");
 }
 
 void ProductWidget::onCategoryFilterChanged(const QString& category)
@@ -165,16 +189,17 @@ void ProductWidget::onCategoryFilterChanged(const QString& category)
     if (category == "Все") {
         onLoadAllClicked();
     } else {
+        statusLabel->setText(QString("Фильтрация по категории '%1'...").arg(category));
+        
+        // Полная блокировка интерфейса
+        setEnabled(false);
+        progressBar->setFormat(QString("Поиск товаров в категории '%1'...").arg(category));
+        progressBar->show();
+        
         QVariantMap params;
         params["category"] = category;
         
-        auto result = model->execute("filter_category", params);
-        
-        if (result.ok) {
-            statusLabel->setText(QString("Товаров в категории '%1': %2").arg(category).arg(result.rows.size()));
-        } else {
-            statusLabel->setText("Ошибка фильтрации: " + result.errors_log.join(", "));
-        }
+        model->executeAsync("filter_category", params);
     }
 }
 
@@ -209,11 +234,53 @@ void ProductWidget::onRefreshClicked()
     
     if (model->isValid()) {
         tableView->setModel(model);
+        
+        // Подключаем сигналы асинхронного выполнения (старый синтаксис для совместимости)
+        connect(model, SIGNAL(executionStarted(QUuid)), this, SLOT(onQueryStarted(QUuid)));
+        connect(model, SIGNAL(executionFinished(QUuid)), this, SLOT(onQueryFinished(QUuid)));
+        connect(model, SIGNAL(executionFailed(QUuid,QString)), this, SLOT(onQueryFailed(QUuid,QString)));
+        
         // Скрываем ID колонку (индекс 0)
         tableView->hideColumn(0);
-        onLoadAllClicked();
-        statusLabel->setText("Данные и схема обновлены");
+        
+        // Загружаем данные синхронно при обновлении
+        auto result = model->execute("load_all");
+        if (result.ok) {
+            statusLabel->setText(QString("Данные и схема обновлены. Записей: %1").arg(result.rows.size()));
+        } else {
+            statusLabel->setText("Ошибка загрузки после обновления: " + result.errors_log.join(", "));
+        }
     } else {
         statusLabel->setText("Ошибка обновления: " + model->getLastError());
     }
+}
+
+void ProductWidget::onQueryStarted(const QUuid& queryId)
+{
+    qDebug() << "Query started:" << queryId;
+    // Индикатор загрузки уже установлен в методах выше
+}
+
+void ProductWidget::onQueryFinished(const QUuid& queryId)
+{
+    qDebug() << "Query finished:" << queryId;
+    
+    // Разблокируем интерфейс
+    setEnabled(true);
+    progressBar->hide();
+    
+    // Обновляем статус с количеством строк
+    int rowCount = model->rowCount();
+    statusLabel->setText(QString("Загружено записей: %1").arg(rowCount));
+}
+
+void ProductWidget::onQueryFailed(const QUuid& queryId, const QString& error)
+{
+    qDebug() << "Query failed:" << queryId << "Error:" << error;
+    
+    // Разблокируем интерфейс
+    setEnabled(true);
+    progressBar->hide();
+    
+    statusLabel->setText("Ошибка запроса: " + error);
 }

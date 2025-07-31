@@ -100,6 +100,7 @@ QueryResult CsvQueryHandler::operator()(const QueryContext& context)
         }
     } else if (processedSql.startsWith("FILTER ")) {
         // Применяем фильтр
+        QThread::sleep(10);
         QString filterExpr = processedSql.mid(7); // Убираем "FILTER "
         result.rows = applyFilter(filterExpr);
         result.ok = true;

@@ -26,7 +26,7 @@ win32 {
         LIBS += -L$$PWD/../../build/Desktop_Qt_6_8_0_MinGW_64_bit-Release/src/release -lQMetaModel
     }
 } else {
-    LIBS += $$PWD/../../build/wsl_makefiles/libQMetaModel.so
+    LIBS += $$PWD/../../src/libQMetaModel.so
 }
 
 # yaml-cpp
@@ -40,7 +40,7 @@ win32 {
     QMAKE_LFLAGS += -static-libgcc -static-libstdc++
 } else {
     # Linux/Unix - use build_linux directory
-    LIBS += $$PWD/../external/yaml-cpp/build_linux/libyaml-cpp.a
+    LIBS += $$PWD/../../external/yaml-cpp/build_linux/libyaml-cpp.a
 }
 
 # Файлы данных будут загружаться из исходной директории

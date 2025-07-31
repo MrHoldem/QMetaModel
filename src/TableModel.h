@@ -10,6 +10,7 @@
 namespace QForge {
 
 class ModelSchema; // В namespace QForge
+struct Column;     // Forward declaration для Column
 
 namespace nsModel {
 
@@ -60,6 +61,9 @@ protected:
     virtual void onExecutionStarted(const QString& queryName, const QVariantMap& params);
     virtual void onExecutionFinished(const QString& queryName, const QueryResult& result);
     virtual void onExecutionError(const QString& queryName, const QString& error);
+    
+    // Валидация данных
+    QString validateValue(const QVariant& value, const QForge::Column& column) const;
     
     const ::QForge::ModelSchema& getSchema() const;
 };

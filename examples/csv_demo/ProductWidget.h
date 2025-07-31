@@ -5,6 +5,9 @@
 #include <QPushButton>
 #include <QComboBox>
 #include <QLabel>
+#include <QUuid>
+#include <QProgressBar>
+#include <QTimer>
 
 // Forward declaration
 namespace QForge {
@@ -27,6 +30,12 @@ private slots:
     void onCategoryFilterChanged(const QString& category);
     void onRefreshClicked();
     
+    // Асинхронные слоты
+public slots:
+    void onQueryStarted(const QUuid& queryId);
+    void onQueryFinished(const QUuid& queryId);
+    void onQueryFailed(const QUuid& queryId, const QString& error);
+    
 private:
     void setupUi();
     void connectSignals();
@@ -38,6 +47,8 @@ private:
     QPushButton* refreshButton;
     QComboBox* categoryCombo;
     QLabel* statusLabel;
+    QProgressBar* progressBar;
+    QTimer* progressTimer;
     
     // Модель
     QForge::nsModel::TableModel* model;

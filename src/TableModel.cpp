@@ -1,5 +1,6 @@
 #include "TableModel.h"
 #include "private/TableModelPrivate.h"
+#include <QRegularExpression>
 #include "private/ModelSchema.h"
 #include <QDebug>
 
@@ -223,7 +224,17 @@ bool TableModel::setData(const QModelIndex& index, const QVariant& value, int ro
     
     // @>25@O5<, @07@5H5=> ;8 @540:B8@>20=85 MB>9 :>;>=:8
     if (d->schema && index.column() < d->schema->columns.size()) {
-        if (!d->schema->columns[index.column()].isEditable) {
+        const QForge::Column& column = d->schema->columns[index.column()];
+        
+        if (!column.isEditable) {
+            return false;
+        }
+        
+        // Проверяем валидацию
+        QString validationError = validateValue(value, column);
+        if (!validationError.isEmpty()) {
+            // В реальном приложении здесь можно показать сообщение об ошибке
+            qWarning() << "Validation failed for column" << column.name << ":" << validationError;
             return false;
         }
     }
@@ -253,6 +264,66 @@ Qt::ItemFlags TableModel::flags(const QModelIndex& index) const
     }
     
     return flags;
+}
+
+QString TableModel::validateValue(const QVariant& value, const QForge::Column& column) const
+{
+    const QForge::Validator& validator = column.validator;
+    
+    if (validator.type == QForge::ValidatorType::None) {
+        return QString(); // Нет валидации
+    }
+    
+    switch (validator.type) {
+        case QForge::ValidatorType::Range: {
+            bool ok;
+            double numValue = value.toDouble(&ok);
+            if (!ok) {
+                return QString("Значение должно быть числом");
+            }
+            
+            double minVal = validator.range.min.toDouble();
+            double maxVal = validator.range.max.toDouble();
+            
+            if (numValue < minVal || numValue > maxVal) {
+                return QString("Значение должно быть от %1 до %2")
+                    .arg(minVal)
+                    .arg(maxVal);
+            }
+            break;
+        }
+        
+        case QForge::ValidatorType::Length: {
+            QString strValue = value.toString();
+            if (strValue.length() < validator.length.minLength || strValue.length() > validator.length.maxLength) {
+                return QString("Длина должна быть от %1 до %2 символов")
+                    .arg(validator.length.minLength)
+                    .arg(validator.length.maxLength);
+            }
+            break;
+        }
+        
+        case QForge::ValidatorType::Regexp: {
+            QString strValue = value.toString();
+            QRegularExpression regex(validator.pattern);
+            if (!regex.match(strValue).hasMatch()) {
+                return QString("Значение не соответствует требуемому формату");
+            }
+            break;
+        }
+        
+        case QForge::ValidatorType::Required: {
+            if (value.isNull() || value.toString().isEmpty()) {
+                return QString("Поле обязательно для заполнения");
+            }
+            break;
+        }
+        
+        default:
+            break;
+    }
+    
+    return QString(); // Валидация прошла успешно
 }
 
 // Protected virtual methods for customization

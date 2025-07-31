@@ -369,6 +369,28 @@ bool ModelCore::parseYaml(const QString& content) {
                     if (validatorNode["pattern"]) {
                         column.validator.pattern = QString::fromStdString(validatorNode["pattern"].as<std::string>());
                     }
+                    if (validatorNode["min"]) {
+                        try {
+                            QString minStr = QString::fromStdString(validatorNode["min"].as<std::string>());
+                            column.validator.range.min = QVariant(minStr.toDouble());
+                            column.validator.length.minLength = minStr.toInt();
+                        } catch (...) {
+                            // Fallback for numeric values
+                            column.validator.range.min = QVariant(validatorNode["min"].as<double>());
+                            column.validator.length.minLength = validatorNode["min"].as<int>();
+                        }
+                    }
+                    if (validatorNode["max"]) {
+                        try {
+                            QString maxStr = QString::fromStdString(validatorNode["max"].as<std::string>());
+                            column.validator.range.max = QVariant(maxStr.toDouble());
+                            column.validator.length.maxLength = maxStr.toInt();
+                        } catch (...) {
+                            // Fallback for numeric values
+                            column.validator.range.max = QVariant(validatorNode["max"].as<double>());
+                            column.validator.length.maxLength = validatorNode["max"].as<int>();
+                        }
+                    }
                 }
                 
                 schema->columns.append(column);
@@ -539,6 +561,14 @@ bool ModelCore::parseJson(const QString& content) {
                 QJsonObject validatorObj = colObj["validator"].toObject();
                 column.validator.type = stringToValidatorType(validatorObj["type"].toString());
                 column.validator.pattern = validatorObj["pattern"].toString();
+                if (validatorObj.contains("min")) {
+                    column.validator.range.min = QVariant(validatorObj["min"].toDouble());
+                    column.validator.length.minLength = validatorObj["min"].toInt();
+                }
+                if (validatorObj.contains("max")) {
+                    column.validator.range.max = QVariant(validatorObj["max"].toDouble());
+                    column.validator.length.maxLength = validatorObj["max"].toInt();
+                }
             }
             
             schema->columns.append(column);
