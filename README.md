@@ -1,4 +1,4 @@
-# QForge
+# QMetaModel (QForge)
 
 **Declarative Qt data‑model generator (Table & Tree) powered by YAML / JSON DSL.  
 
