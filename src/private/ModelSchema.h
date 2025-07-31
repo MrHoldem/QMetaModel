@@ -309,9 +309,8 @@ public:
     QStringList primaryKeyColumns;
     
     // Headers configuration
-    QStringList horizontalHeaders;
+    HeaderSettings horizontalHeaders;
     HeaderSettings verticalHeaders;
-    HeaderSettings horizontalHeaderSettings;
     
     // Sorting configuration
     QVector<SortRule> sorting;
@@ -373,7 +372,7 @@ public:
         verticalHeaders.startIndex = 1;
         
         // Setup default horizontal headers
-        horizontalHeaderSettings.type = HeaderType::Custom;
+        horizontalHeaders.type = HeaderType::Custom;
         
         // Default error handling
         defaultErrorHandling.onError = ErrorHandling::ShowMessage;

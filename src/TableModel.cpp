@@ -125,7 +125,7 @@ int TableModel::columnCount(const QModelIndex& parent) const
     
     if (!d->schema) return 0;
     
-    return d->horizontalHeaders.size();
+    return d->schema->columns.size();
 }
 
 QVariant TableModel::data(const QModelIndex& index, int role) const
@@ -182,21 +182,60 @@ QVariant TableModel::headerData(int section, Qt::Orientation orientation, int ro
     }
     
     if (orientation == Qt::Horizontal) {
-        if (section >= 0 && section < d->horizontalHeaders.size()) {
-            return d->horizontalHeaders[section];
+        // Горизонтальные заголовки
+        if (d->schema && section >= 0 && section < d->schema->columns.size()) {
+            switch (d->schema->horizontalHeaders.type) {
+                case ::QForge::HeaderType::Numeric:
+                    return section + d->schema->horizontalHeaders.startIndex;
+                case ::QForge::HeaderType::Alphabetic: {
+                    // Реализация Excel-стиля: A, B, C, ..., Z, AA, AB, AC, ...
+                    QChar startChar = d->schema->horizontalHeaders.startLetter.isEmpty() ? 
+                        QChar('A') : d->schema->horizontalHeaders.startLetter[0];
+                    int startOffset = startChar.toLatin1() - 'A';
+                    int adjustedSection = section + startOffset;
+                    
+                    QString result;
+                    do {
+                        result = QChar('A' + (adjustedSection % 26)) + result;
+                        adjustedSection = adjustedSection / 26 - 1;
+                    } while (adjustedSection >= 0);
+                    
+                    return result;
+                }
+                case ::QForge::HeaderType::Custom:
+                    if (section < d->schema->horizontalHeaders.customLabels.size()) {
+                        return d->schema->horizontalHeaders.customLabels[section];
+                    }
+                    break;
+            }
         }
+        // Fallback - используем имена колонок
+        if (d->schema && section >= 0 && section < d->schema->columns.size()) {
+            const QForge::Column& column = d->schema->columns[section];
+            return column.displayName.isEmpty() ? column.name : column.displayName;
+        }
+        return section + 1; // По умолчанию нумерация с 1
     } else {
-        // 5@B8:0;L=K5 703>;>2:8
+        // Вертикальные заголовки
         if (d->schema) {
             switch (d->schema->verticalHeaders.type) {
                 case ::QForge::HeaderType::Numeric:
                     return section + d->schema->verticalHeaders.startIndex;
-                case ::QForge::HeaderType::Alphabetic:
-                    // @>AB0O @50;870F8O A, B, C...
-                    if (section < 26) {
-                        return QChar('A' + section);
-                    }
-                    break;
+                case ::QForge::HeaderType::Alphabetic: {
+                    // Реализация Excel-стиля: A, B, C, ..., Z, AA, AB, AC, ...
+                    QChar startChar = d->schema->verticalHeaders.startLetter.isEmpty() ? 
+                        QChar('A') : d->schema->verticalHeaders.startLetter[0];
+                    int startOffset = startChar.toLatin1() - 'A';
+                    int adjustedSection = section + startOffset;
+                    
+                    QString result;
+                    do {
+                        result = QChar('A' + (adjustedSection % 26)) + result;
+                        adjustedSection = adjustedSection / 26 - 1;
+                    } while (adjustedSection >= 0);
+                    
+                    return result;
+                }
                 case ::QForge::HeaderType::Custom:
                     if (section < d->schema->verticalHeaders.customLabels.size()) {
                         return d->schema->verticalHeaders.customLabels[section];
@@ -204,7 +243,7 @@ QVariant TableModel::headerData(int section, Qt::Orientation orientation, int ro
                     break;
             }
         }
-        return section + 1; // > C<>;G0=8N =C<5@0F8O A 1
+        return section + 1; // По умолчанию нумерация с 1
     }
     
     return QVariant();
@@ -222,7 +261,7 @@ bool TableModel::setData(const QModelIndex& index, const QVariant& value, int ro
         return false;
     }
     
-    // @>25@O5<, @07@5H5=> ;8 @540:B8@>20=85 MB>9 :>;>=:8
+    // Проверяем, разрешено ли редактирование этой колонки
     if (d->schema && index.column() < d->schema->columns.size()) {
         const QForge::Column& column = d->schema->columns[index.column()];
         
@@ -332,15 +371,15 @@ void TableModel::onExecutionStarted(const QString& queryName, const QVariantMap&
 {
     Q_UNUSED(queryName)
     Q_UNUSED(params)
-    // 07>20O @50;870F8O - =8G53> =5 45;05<
-    // 0A;54=8:8 <>3CB ?5@5>?@545;8BL 4;O ;>38@>20=8O 8 B.4.
+    // Базовая реализация - ничего не делаем
+    // Наследники могут переопределить для логирования и т.д.
 }
 
 void TableModel::onExecutionFinished(const QString& queryName, const QueryResult& result)
 {
     Q_UNUSED(queryName)
     Q_UNUSED(result)
-    // 07>20O @50;870F8O - =8G53> =5 45;05<
+    // Базовая реализация - ничего не делаем
 }
 
 void TableModel::onExecutionError(const QString& queryName, const QString& error)
@@ -351,7 +390,7 @@ void TableModel::onExecutionError(const QString& queryName, const QString& error
     
     if (!d->schema) return;
     
-    // 1@010BK205< >H81:C A>3;0A=> =0AB@>9:0< AE5<K
+    // Обрабатываем ошибку согласно настройкам схемы
     switch (d->schema->defaultErrorHandling.onError) {
         case ::QForge::ErrorHandling::ShowMessage:
             qWarning() << "Query error:" << d->formatErrorMessage(error);
@@ -362,7 +401,7 @@ void TableModel::onExecutionError(const QString& queryName, const QString& error
             break;
             
         case ::QForge::ErrorHandling::Ignore:
-            // 8G53> =5 45;05<
+            // Ничего не делаем
             break;
     }
 }
