@@ -54,6 +54,9 @@ install_manifest.txt
 *.bak
 *.swp
 *.~*
+CLAUDE.md
+.claude/
+market_analysis.md
 
 # === YAML-CPP build ===
 external/yaml-cpp/build/
