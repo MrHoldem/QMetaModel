@@ -67,10 +67,12 @@ QStringList ModelSchema::validate() const {
         }
     }
     
-    // Check horizontal headers count matches visible columns
-    if (!horizontalHeaders.isEmpty() && horizontalHeaders.size() != columns.size()) {
+    // Check horizontal headers count matches visible columns (только для Custom типа)
+    if (horizontalHeaders.type == HeaderType::Custom && 
+        !horizontalHeaders.customLabels.isEmpty() && 
+        horizontalHeaders.customLabels.size() != columns.size()) {
         errors << QString("Horizontal headers count (%1) doesn't match columns count (%2)")
-                  .arg(horizontalHeaders.size())
+                  .arg(horizontalHeaders.customLabels.size())
                   .arg(columns.size());
     }
 
@@ -164,11 +166,13 @@ void ModelSchema::addColumn(const Column& column) {
         primaryKeyColumns.append(column.name);
     }
     
-    // Update horizontal headers if needed
-    if (!column.displayName.isEmpty()) {
-        horizontalHeaders.append(column.displayName);
-    } else {
-        horizontalHeaders.append(column.name);
+    // Update horizontal headers if needed (только для Custom типа)
+    if (horizontalHeaders.type == HeaderType::Custom) {
+        if (!column.displayName.isEmpty()) {
+            horizontalHeaders.customLabels.append(column.displayName);
+        } else {
+            horizontalHeaders.customLabels.append(column.name);
+        }
     }
     
     modifiedAt = QDateTime::currentDateTime();
@@ -186,13 +190,13 @@ void ModelSchema::removeColumn(const QString& columnName) {
     // Remove from primary key list
     primaryKeyColumns.removeAll(columnName);
     
-    // Update horizontal headers
-    // This is simplified - in real implementation you'd need to track header positions
-    for (int i = 0; i < horizontalHeaders.size(); ++i) {
-        // This is a simplified check - you might want to store column-to-header mapping
-        if (horizontalHeaders[i] == columnName) {
-            horizontalHeaders.removeAt(i);
-            break;
+    // Update horizontal headers (только для Custom типа)
+    if (horizontalHeaders.type == HeaderType::Custom) {
+        for (int i = 0; i < horizontalHeaders.customLabels.size(); ++i) {
+            if (horizontalHeaders.customLabels[i] == columnName) {
+                horizontalHeaders.customLabels.removeAt(i);
+                break;
+            }
         }
     }
     

@@ -25,14 +25,14 @@ TableModelPrivate::~TableModelPrivate()
 {
     clearData();
     
-    // G8I05< 0:B82=K5 >?5@0F88
+    // Отменяем активные операции
     for (auto it = activeOperations.begin(); it != activeOperations.end(); ++it) {
         delete it.value();
     }
     activeOperations.clear();
     
     delete modelCore;
-    // schema C40;O5BAO 2 ModelCore
+    // schema удаляется в ModelCore
 }
 
 bool TableModelPrivate::loadSchema(const QString& configPath)
@@ -52,18 +52,7 @@ bool TableModelPrivate::loadSchema(const QString& configPath)
     // Получаем схему из ModelCore
     schema = const_cast<QForge::ModelSchema*>(&modelCore->getSchema());
     
-    // =8F80;878@C5< 703>;>2:8 87 AE5<K
-    horizontalHeaders.clear();
-    for (const auto& header : schema->horizontalHeaders) {
-        horizontalHeaders.append(header);
-    }
-    
-    // A;8 703>;>2:8 =5 7040=K, 8A?>;L7C5< 8<5=0 :>;>=>:
-    if (horizontalHeaders.isEmpty()) {
-        for (const auto& column : schema->columns) {
-            horizontalHeaders.append(column.name);
-        }
-    }
+    // Заголовки теперь генерируются в TableModel на основе HeaderSettings
     
     isInitialized = validateSchema();
     return isInitialized;
@@ -87,7 +76,7 @@ bool TableModelPrivate::validateSchema()
         return false;
     }
     
-    // @>25@O5<, GB> 5ABL E>BO 1K >48= 70?@>A
+    // Проверяем, что есть хотя бы один запрос
     if (schema->queries.isEmpty()) {
         lastError = "No queries defined in schema";
         return false;
@@ -112,7 +101,7 @@ QueryResult TableModelPrivate::executeQuery(const QString& queryName, const QVar
         return result;
     }
     
-    // !>7405< :>=B5:AB 70?@>A0
+    // Создаем контекст запроса
     QueryContext context;
     context.queryName = queryName;
     context.bindings = params;
@@ -163,7 +152,7 @@ QueryResult TableModelPrivate::executeSqlQuery(const QueryContext& context)
     const QForge::Query& queryDef = schema->queries[context.queryName];
     QString sql = queryDef.sql;
     
-    // >4AB02;O5< ?0@0<5B@K 2 SQL
+    // Подставляем параметры в SQL
     for (auto it = context.bindings.begin(); it != context.bindings.end(); ++it) {
         QString placeholder = QString("${%1}").arg(it.key());
         sql.replace(placeholder, it.value().toString());
@@ -178,7 +167,7 @@ QueryResult TableModelPrivate::executeSqlQuery(const QueryContext& context)
         return result;
     }
     
-    // !>18@05< @57C;LB0BK
+    // Собираем результаты
     while (query.next()) {
         QVariantList row;
         for (int i = 0; i < query.record().count(); ++i) {
@@ -206,12 +195,12 @@ QUuid TableModelPrivate::executeQueryAsync(const QString& queryName, const QVari
     operation->queryName = queryName;
     operation->params = params;
     
-    // !>7405< Future 4;O 0A8=E@>==>3> 2K?>;=5=8O
+    // Создаем Future для асинхронного выполнения
     operation->future = QtConcurrent::run([this, queryName, params]() {
         return executeQuery(queryName, params);
     });
     
-    // !>7405< Watcher 4;O >BA;56820=8O 7025@H5=8O
+    // Создаем Watcher для отслеживания завершения
     operation->watcher = new QFutureWatcher<QueryResult>();
     QObject::connect(operation->watcher, &QFutureWatcher<QueryResult>::finished,
                      this, &TableModelPrivate::onAsyncQueryFinished);
@@ -230,7 +219,7 @@ void TableModelPrivate::onAsyncQueryFinished()
     QFutureWatcher<QueryResult>* watcher = static_cast<QFutureWatcher<QueryResult>*>(sender());
     if (!watcher) return;
     
-    // 0E>48< >?5@0F8N ?> watcher
+    // Находим операцию по watcher
     QUuid operationId;
     for (auto it = activeOperations.begin(); it != activeOperations.end(); ++it) {
         if (it.value()->watcher == watcher) {

@@ -84,7 +84,6 @@ public:
     
     // 0==K5 <>45;8 (107>20O @50;870F8O)
     QList<QVariantList> modelData;
-    QStringList horizontalHeaders;
 };
 
 } // namespace nsModel
