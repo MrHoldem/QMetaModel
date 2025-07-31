@@ -1,0 +1,83 @@
+# TargetAlbums DSL (YAML version)
+name: TargetAlbums
+type: table               # тип модели, может быть "table" или "tree"
+description: "Модель для работы с целевыми альбомами."
+
+# источник данных: "query" или "manual"
+source: query
+is_editable: true      # если false — данные только для чтения
+
+horizontal_headers:    # заголовки столбцов
+  - "Название"
+  - "Цель"
+  - "Дата создания"
+
+vertical_headers: 1    # можно число, "A" / "B"... или "invisible"
+
+columns:
+  - name: id
+    type: uuid
+    is_primary_key: true
+    is_visible: false        # скрытое поле
+
+  - name: title
+    type: string
+    is_visible: true
+    is_editable: true
+    tooltip: "Название альбома"
+
+  - name: goal
+    type: string
+    is_visible: true
+    is_editable: true
+    tooltip: "Цель альбома"
+    validator:            # валидация по regexp
+      type: regexp
+      pattern: '^[A-Za-zА-Яа-яЁё\s]+$'
+
+  - name: created_at
+    type: datetime
+    is_visible: true
+    is_editable: false
+    tooltip: "Дата создания альбома"
+    alignment: center
+
+sorting:
+  - column: created_at
+    order: desc            # asc|desc
+  - column: title
+    order: asc
+
+queries:
+  select_all:
+    sql: "SELECT * FROM ap.target_albums"
+    on_error: callback     # show_message | ignore | log | callback
+
+  select_by_id:
+    arguments:
+      - { name: id,     type: uuid }
+      - { name: fields, type: array, is_optional: true, default: ["*"] }
+    sql: "SELECT ${fields} FROM ap.target_albums WHERE id = ${id}"
+
+  insert:
+    arguments:
+      - { name: id,    type: uuid,   is_optional: true, default: gen_random_uuid() }
+      - { name: title, type: string }
+      - { name: goal,  type: string, is_optional: true }
+    sql: |
+      INSERT INTO ap.target_albums (title, goal)
+      VALUES (${title}, ${goal})
+      RETURNING id
+
+  remove:
+    arguments:
+      - { name: id, type: uuid }
+    sql: "DELETE FROM ap.target_albums WHERE id = ${id}"
+
+default_error_handling:
+  on_error: show_message       # ignore | callback | log
+  message: "Произошла ошибка при выполнении запроса: ${last_error}"
+
+callback_is_required: true     # если false — fallback к default_error_handling
+default_row_tooltip: "Альбом: ${title} (id: ${id})"
+show_numeration: true         # отображать нумерацию строк/столбцов

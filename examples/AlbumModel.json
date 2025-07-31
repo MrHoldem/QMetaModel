@@ -1,0 +1,117 @@
+{
+    "name": "TargetAlbums",
+    "type": "table", // Тип модели, может быть "table" или "tree".
+    "description": "Модель для работы с целевыми альбомами.",
+    "source": "query", // Также может быть manual.
+    "is_editable": true, // Если false, то данные нельзя редактировать.
+    "load_query": "select_all", // Запрос для загрузки данных в таблицу.
+    "horizontal_headers": [
+        "Название",
+        "Цель",
+        "Дата создания"
+    ],
+    "vertical_headers": 1, // Начало нумерации строк, допускаются буквы (A, B, ...), также может быть "invisible" для скрытия заголовков.
+    "columns": [
+        {
+            "name": "id",
+            "type": "uuid",
+            "is_primary_key": true,
+            "is_visible": false // Скрытое поле, не отображается в таблице.
+        },
+        {
+            "name": "title",
+            "type": "string",
+            "is_visible": true,
+            "is_editable": true,
+            "tooltip": "Название альбома"
+        },
+        {
+            "name": "goal",
+            "type": "string",
+            "is_visible": true,
+            "is_editable": true,
+            "tooltip": "Цель альбома",
+            "validator": {
+                "type": "regexp",
+                "pattern": "^[A-Za-zА-Яа-яЁё\\s]+$" // Только буквы (русские / латинские) и пробелы
+            }
+        },
+        {
+            "name": "created_at",
+            "type": "datetime",
+            "is_visible": true,
+            "is_editable": false,
+            "tooltip": "Дата создания альбома",
+            "alignment": "center"
+        }
+    ],
+    "sorting": [
+        {
+            "column": "created_at",
+            "order": "desc" // Альтернативно asc
+        },
+        {
+            "column": "title",
+            "order": "asc"
+        }
+    ],
+    "queries": {
+        "select_all": {
+            "query": "SELECT * FROM ap.target_albums",
+            "on_error": "callback" // Альтернативно "show_message", "ignore", "log"
+        },
+        "select_by_id": {
+            "arguments": [
+                {
+                    "name": "id",
+                    "type": "uuid"
+                },
+                {
+                    "name": "fields",
+                    "type": "array",
+                    "is_optional": true,
+                    "default": [
+                        "*"
+                    ]
+                }
+            ],
+            "query": "SELECT {$fields} FROM ap.target_albums WHERE id = {$id}"
+        },
+        "insert": {
+            "arguments": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "is_optional": true,
+                    "default": "gen_random_uuid()"
+                },
+                {
+                    "name": "title",
+                    "type": "string"
+                },
+                {
+                    "name": "goal",
+                    "type": "string",
+                    "is_optional": true
+                }
+            ],
+            "query": "INSERT INTO ap.target_albums (title, goal) VALUES ({$title}, {$goal}) RETURNING id"
+        },
+        "remove": {
+            "arguments": [
+                {
+                    "name": "id",
+                    "type": "uuid"
+                }
+            ],
+            "query": "DELETE FROM ap.target_albums WHERE id = {$id}"
+        }
+    },
+    "default_error_handling": {
+        "on_error": "show_message", // Альтернативно "ignore", "callback", "log"
+        "message": "Произошла ошибка при выполнении запроса: {$last_error}"
+    },
+    "callback_is_required": true, // Если false и не указано другое поведение, то будет использоваться стандартная обработка ошибок.
+    "default_row_tooltip": "Альбом: {$title} (id: {$id})", // Аналогично можно задать для column. Показывается, если у ячейки нет других подсказок.
+    "show_enumeration": true // Будет ли отображаться нумерация строк/столбцов в таблице.
+}
