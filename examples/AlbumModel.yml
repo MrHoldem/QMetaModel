@@ -1,6 +1,6 @@
-# TargetAlbums DSL (YAML version)
-name: TargetAlbums
-type: table               # тип модели, может быть "table" или "tree"
+# AlbumModel DSL (YAML version)
+name: AlbumModel
+type: table   # тип модели, может быть "table" или "tree"
 description: "Модель для работы с целевыми альбомами."
 
 # источник данных: "query" или "manual"

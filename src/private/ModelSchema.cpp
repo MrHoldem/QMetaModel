@@ -74,7 +74,7 @@ QStringList ModelSchema::validate() const {
                   .arg(horizontalHeaders.size())
                   .arg(visibleColumns.size());
     }
-    
+
     // Check loadQuery exists
     if (source == DataSource::Query) {
         if (loadQuery.isEmpty()) {
@@ -249,6 +249,36 @@ QStringList ModelSchema::getEditableColumns() const {
 
 QStringList ModelSchema::getPrimaryKeyColumns() const {
     return primaryKeyColumns;
+}
+
+HeaderSettings& HeaderSettings::operator=(const QString& str) {
+    // Если строка — ровно один латинский символ (A-Z)
+    if (str.size() == 1 && str[0].isLetter() && str[0].toUpper() >= 'A' && str[0].toUpper() <= 'Z') {
+        type = HeaderType::Alphabetic;
+        startLetter = str.toUpper();
+        return *this;
+    }
+    
+    // Если строка — целое число
+    bool ok = false;
+    int value = str.toInt(&ok);
+    if (ok) {
+        type = HeaderType::Numeric;
+        startIndex = value;
+        return *this;
+    }
+    
+    // Если строка "invisible"
+    if (str.toLower() == "invisible") {
+        type = HeaderType::Invisible;
+        isVisible = false;
+        return *this;
+    }
+    
+    // Иначе считаем это custom заголовком
+    type = HeaderType::Custom;
+    customLabels = str.split(',');
+    return *this;
 }
 
 } // namespace QForge

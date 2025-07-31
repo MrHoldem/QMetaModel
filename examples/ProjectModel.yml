@@ -1,0 +1,116 @@
+# ProjectModel DSL (YAML version)
+name: ProjectModel
+type: tree   # Test hierarchical model handling
+description: "Model for managing project records with hierarchical structure."
+
+# Data source and editability
+source: manual  # Test manual data source
+is_editable: true  # Allow editing to test editable fields
+
+horizontal_headers:  # Minimal headers to test mismatch with columns
+  - "Project Name"
+  - "Status"
+
+vertical_headers: A  # Use letter-based headers to test non-numeric rendering
+
+columns:
+  - name: project_id
+    type: uuid
+    is_primary_key: true
+    is_visible: false  # Hidden primary key
+    is_editable: false
+
+  - name: name
+    type: string
+    is_visible: true
+    is_editable: true
+    tooltip: "Name of the project"
+    validator:  # Complex regex to test validation
+      type: regexp
+      pattern: '^[A-Za-z0-9][A-Za-z0-9_\-\s]{1,50}$'  # Alphanumeric, underscores, hyphens, spaces, 2-50 chars
+
+  - name: status
+    type: boolean  # Test non-string type
+    is_visible: true
+    is_editable: true
+    tooltip: "Project active status"
+    alignment: center
+
+  - name: budget
+    type: integer  # Test numeric type
+    is_visible: true
+    is_editable: true
+    tooltip: "Project budget in USD"
+    validator:  # Test numeric range validation
+      type: range
+      min: 0
+      max: 1000000
+
+  - name: updated_at
+    type: datetime
+    is_visible: false  # Hidden but sortable
+    is_editable: false
+    tooltip: "Last update timestamp"
+
+sorting:
+  - column: budget
+    order: desc  # Sort by numeric field
+  - column: name
+    order: asc   # Secondary sort by string
+  - column: updated_at
+    order: desc  # Sort by hidden field
+
+queries:
+  select_all:
+    sql: "SELECT project_id, name, status, budget, updated_at FROM ap.projects WHERE parent_id IS NULL"
+    on_error: log  # Test logging error handling
+
+  select_by_id:
+    arguments:
+      - { name: project_id, type: uuid }
+      - { name: fields, type: array, is_optional: true, default: ["project_id", "name", "status", "budget", "updated_at"] }
+      - { name: include_children, type: boolean, is_optional: true, default: false }
+    sql: |
+      SELECT ${fields} FROM ap.projects
+      WHERE project_id = ${project_id}
+      ${include_children ? 'OR parent_id = ${project_id}' : ''}
+
+  insert:
+    arguments:
+      - { name: project_id, type: uuid, is_optional: true, default: gen_random_uuid() }
+      - { name: name, type: string }
+      - { name: status, type: boolean, is_optional: true, default: true }
+      - { name: budget, type: integer, is_optional: true, default: 0 }
+      - { name: parent_id, type: uuid, is_optional: true }
+    sql: |
+      INSERT INTO ap.projects (project_id, name, status, budget, parent_id)
+      VALUES (${project_id}, ${name}, ${status}, ${budget}, ${parent_id})
+      RETURNING project_id
+
+  update:
+    arguments:
+      - { name: project_id, type: uuid }
+      - { name: name, type: string, is_optional: true }
+      - { name: status, type: boolean, is_optional: true }
+      - { name: budget, type: integer, is_optional: true }
+    sql: |
+      UPDATE ap.projects
+      SET name = COALESCE(${name}, name),
+          status = COALESCE(${status}, status),
+          budget = COALESCE(${budget}, budget),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE project_id = ${project_id}
+      RETURNING project_id
+
+  remove:
+    arguments:
+      - { name: project_id, type: uuid }
+    sql: "DELETE FROM ap.projects WHERE project_id = ${project_id} OR parent_id = ${project_id}"
+
+default_error_handling:
+  on_error: ignore  # Test ignoring errors
+  message: "Error occurred: ${last_error}"
+
+callback_is_required: false  # Test fallback to default_error_handling
+default_row_tooltip: "Project: ${name} (ID: ${project_id}, Budget: ${budget})"
+show_numeration: false  # Test disabling numeration

@@ -168,6 +168,10 @@ struct HeaderSettings {
     QString startLetter = "A";
     bool isVisible = true;
     StyleSettings style;
+    QString tooltip;
+    bool isEnumerated = false; // For numeric headers
+
+    HeaderSettings& operator=(const QString& value);
 };
 
 struct ErrorHandlingSettings {

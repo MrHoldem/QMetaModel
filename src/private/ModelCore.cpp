@@ -510,6 +510,15 @@ bool ModelCore::parseJson(const QString& content) {
     if (root.contains("is_editable")) {
         schema->isEditable = root["is_editable"].toBool();
     }
+    
+    // Parse horizontal headers
+    if (root.contains("horizontal_headers") && root["horizontal_headers"].isArray()) {
+        schema->horizontalHeaders.clear();
+        QJsonArray headersArray = root["horizontal_headers"].toArray();
+        for (const QJsonValue& headerValue : headersArray) {
+            schema->horizontalHeaders.append(headerValue.toString());
+        }
+    }
 
     // Parse columns
     if (root.contains("columns") && root["columns"].isArray()) {
@@ -544,6 +553,21 @@ bool ModelCore::parseJson(const QString& content) {
             schema->columns.append(column);
         }
     }
+    
+    // Parse sorting
+    if (root.contains("sorting") && root["sorting"].isArray()) {
+        schema->sorting.clear();
+        QJsonArray sortingArray = root["sorting"].toArray();
+        for (const QJsonValue& sortValue : sortingArray) {
+            if (!sortValue.isObject()) continue;
+            
+            QJsonObject sortObj = sortValue.toObject();
+            SortRule sortRule;
+            sortRule.columnName = sortObj["column"].toString();
+            sortRule.order = stringToSortOrder(sortObj["order"].toString());
+            schema->sorting.append(sortRule);
+        }
+    }
 
     // Parse queries
     if (root.contains("queries") && root["queries"].isObject()) {
@@ -555,7 +579,7 @@ bool ModelCore::parseJson(const QString& content) {
             QJsonObject queryObj = it.value().toObject();
             
             Query query;
-            query.sql = queryObj["query"].toString(); // Note: "query" field in JSON vs "sql" in YAML
+            query.sql = queryObj["sql"].toString();
             query.onError = stringToErrorHandling(queryObj.value("on_error").toString());
             
             // Parse arguments
@@ -580,6 +604,26 @@ bool ModelCore::parseJson(const QString& content) {
             
             schema->queries[queryName] = query;
         }
+    }
+    
+    // Parse default error handling
+    if (root.contains("default_error_handling") && root["default_error_handling"].isObject()) {
+        QJsonObject errorObj = root["default_error_handling"].toObject();
+        schema->defaultErrorHandling.onError = stringToErrorHandling(errorObj.value("on_error").toString());
+        schema->defaultErrorHandling.message = errorObj.value("message").toString();
+    }
+    
+    // Parse other settings
+    if (root.contains("callback_is_required")) {
+        schema->callbackIsRequired = root["callback_is_required"].toBool();
+    }
+    
+    if (root.contains("default_row_tooltip")) {
+        schema->defaultRowTooltip = root["default_row_tooltip"].toString();
+    }
+    
+    if (root.contains("show_numeration")) {
+        schema->showNumeration = root["show_numeration"].toBool();
     }
 
     return true;

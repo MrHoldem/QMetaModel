@@ -10,6 +10,7 @@
 #include "QueryHandler.hpp"
 #include "QueryResult.hpp"
 #include "ModelSchema.h"
+#include "QueryHandler.hpp"
 
 namespace QForge::nsModel
 {
@@ -22,14 +23,14 @@ public:
      * \param configPath Путь к конфигу.
      * \param handler Обработчик обращений к БД.
      */
-    explicit ModelCore(const QString& configPath, const QueryHandler& handler);
+    explicit ModelCore(const QString& configPath, const QueryHandler& handler = {});
 
     /*!
      * \brief Конструктор с готовой схемой.
      * \param schema Готовая схема модели.
      * \param handler Обработчик обращений к БД.
      */
-    explicit ModelCore(const ModelSchema& schema, const QueryHandler& handler);
+    explicit ModelCore(const ModelSchema& schema, const QueryHandler& handler = {});
 
     /*!
      * \brief Проверяет, корректно ли был считан файл конфигурации.
