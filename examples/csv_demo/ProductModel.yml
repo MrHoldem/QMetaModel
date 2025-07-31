@@ -1,0 +1,98 @@
+name: ProductModel
+type: table
+description: "Модель для отображения данных о продуктах из CSV файла"
+
+source: query  # Используем внешние данные
+load_query: load_all  # Запрос для начальной загрузки данных
+is_editable: true
+
+horizontal_headers:
+  - "ID"
+  - "Название"
+  - "Цена"
+  - "Количество"
+  - "Категория"
+  - "В наличии"
+  - "Обновлено"
+
+vertical_headers: 1
+
+columns:
+  - name: id
+    type: integer
+    is_primary_key: true
+    is_editable: false
+    alignment: right
+    tooltip: "Уникальный идентификатор продукта"
+
+  - name: name
+    type: string
+    is_editable: true
+    tooltip: "Название продукта"
+    validator:
+      type: length
+      min: 3
+      max: 100
+
+  - name: price
+    type: double
+    is_editable: true
+    alignment: right
+    tooltip: "Цена в долларах"
+    validator:
+      type: range
+      min: 0.01
+      max: 99999.99
+
+  - name: quantity
+    type: integer
+    is_editable: true
+    alignment: right
+    tooltip: "Количество на складе"
+    validator:
+      type: range
+      min: 0
+      max: 9999
+
+  - name: category
+    type: string
+    is_editable: true
+    alignment: center
+    tooltip: "Категория товара"
+    validator:
+      type: list
+      values: ["Electronics", "Appliances", "Furniture", "Other"]
+
+  - name: in_stock
+    type: boolean
+    is_editable: true
+    alignment: center
+    tooltip: "Есть ли товар в наличии"
+
+  - name: last_updated
+    type: datetime
+    is_editable: false
+    alignment: center
+    tooltip: "Последнее обновление"
+
+sorting:
+  - column: name
+    order: asc
+
+queries:
+  load_all:
+    sql: "LOAD_CSV"  # Специальная команда для загрузки CSV
+    
+  filter_category:
+    arguments:
+      - { name: category, type: string }
+    sql: "FILTER category = ${category}"
+    
+  filter_in_stock:
+    sql: "FILTER in_stock = true"
+
+default_error_handling:
+  on_error: show_message
+  message: "Ошибка при загрузке данных: ${last_error}"
+
+show_numeration: true

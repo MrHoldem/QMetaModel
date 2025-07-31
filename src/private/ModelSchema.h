@@ -54,8 +54,7 @@ enum class SortOrder {
 enum class ErrorHandling {
     ShowMessage,
     Ignore,
-    Log,
-    Callback
+    Log
 };
 
 enum class ValidatorType {
@@ -70,8 +69,7 @@ enum class ValidatorType {
 enum class HeaderType {
     Numeric,
     Alphabetic,
-    Custom,
-    Invisible
+    Custom
 };
 
 enum class SelectionBehavior {
@@ -166,7 +164,6 @@ struct HeaderSettings {
     QStringList customLabels;
     int startIndex = 1;
     QString startLetter = "A";
-    bool isVisible = true;
     StyleSettings style;
     QString tooltip;
     bool isEnumerated = false; // For numeric headers
@@ -178,7 +175,6 @@ struct ErrorHandlingSettings {
     ErrorHandling onError = ErrorHandling::ShowMessage;
     QString message = "An error occurred: ${last_error}";
     QString logFormat;
-    QString callbackName;
     bool showStackTrace = false;
 };
 
@@ -206,8 +202,7 @@ struct Column {
     QString displayName;
     QString tooltip;
     
-    // Visibility and editing
-    bool isVisible = true;
+    // Editing settings
     bool isEditable = true;
     bool isPrimaryKey = false;
     bool isAutoIncrement = false;
@@ -329,7 +324,6 @@ public:
     
     // Error handling
     ErrorHandlingSettings defaultErrorHandling;
-    bool callbackIsRequired = false;
     
     // UI settings
     QString defaultRowTooltip;
@@ -377,11 +371,9 @@ public:
         // Setup default vertical headers
         verticalHeaders.type = HeaderType::Numeric;
         verticalHeaders.startIndex = 1;
-        verticalHeaders.isVisible = true;
         
         // Setup default horizontal headers
         horizontalHeaderSettings.type = HeaderType::Custom;
-        horizontalHeaderSettings.isVisible = true;
         
         // Default error handling
         defaultErrorHandling.onError = ErrorHandling::ShowMessage;
@@ -418,7 +410,6 @@ public:
     void addQuery(const QString& name, const Query& query);
     void removeQuery(const QString& name);
     
-    QStringList getVisibleColumns() const;
     QStringList getEditableColumns() const;
     QStringList getPrimaryKeyColumns() const;
 };

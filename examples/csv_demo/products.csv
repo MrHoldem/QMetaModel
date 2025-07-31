@@ -1,0 +1,11 @@
+id,name,price,quantity,category,in_stock,last_updated
+1,Laptop Dell XPS 13,1299.99,15,Electronics,true,2024-01-15 10:30:00
+2,iPhone 15 Pro,999.00,25,Electronics,true,2024-01-14 15:45:00
+3,Coffee Maker,89.99,50,Appliances,true,2024-01-13 09:00:00
+4,Gaming Chair,399.99,8,Furniture,true,2024-01-12 14:20:00
+5,Wireless Mouse,29.99,100,Electronics,true,2024-01-11 11:15:00
+6,Standing Desk,599.00,5,Furniture,false,2024-01-10 16:30:00
+7,USB-C Hub,49.99,75,Electronics,true,2024-01-09 13:45:00
+8,Mechanical Keyboard,149.99,20,Electronics,true,2024-01-08 10:00:00
+9,Monitor 27",349.99,12,Electronics,true,2024-01-07 12:30:00
+10,Office Chair,249.99,0,Furniture,false,2024-01-06 08:45:00

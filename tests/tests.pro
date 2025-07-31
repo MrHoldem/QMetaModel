@@ -29,6 +29,10 @@ unix {
     # Библиотека собирается в src/
     LIBS += $$PWD/../src/libQMetaModel.so
 } else {
-    # Windows - используем статическую библиотеку из основной директории сборки
-    LIBS += $$PWD/../libQMetaModel.a
+    # Windows - используем динамическую библиотеку из каталога сборки src
+    contains(CONFIG, debug, debug|release) {
+        LIBS += -L$$OUT_PWD/../src/debug -lQMetaModel
+    } else {
+        LIBS += -L$$OUT_PWD/../src/release -lQMetaModel
+    }
 }

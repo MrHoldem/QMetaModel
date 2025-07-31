@@ -210,7 +210,6 @@ ModelSchema TableModelTests::createExpectedAlbumSchema()
     // Запросы (добавляем все 4 запроса из YAML файла)
     Query selectAllQuery;
     selectAllQuery.sql = "SELECT * FROM ap.target_albums";
-    selectAllQuery.onError = ErrorHandling::Callback;
     schema.queries["select_all"] = selectAllQuery;
     
     Query selectByIdQuery;
@@ -268,7 +267,6 @@ ModelSchema TableModelTests::createExpectedAlbumSchema()
     schema.defaultErrorHandling.message = "Произошла ошибка при выполнении запроса: ${last_error}";
     
     // Дополнительные настройки
-    schema.callbackIsRequired = true;
     schema.defaultRowTooltip = "Альбом: ${title} (id: ${id})";
     schema.showNumeration = true;
     
@@ -335,7 +333,6 @@ void TableModelTests::compareSchemas(const ModelSchema& expected, const ModelSch
     QCOMPARE(actual.defaultErrorHandling.message, expected.defaultErrorHandling.message);
     
     // Сравниваем дополнительные настройки
-    QCOMPARE(actual.callbackIsRequired, expected.callbackIsRequired);
     QCOMPARE(actual.defaultRowTooltip, expected.defaultRowTooltip);
     QCOMPARE(actual.showNumeration, expected.showNumeration);
 }

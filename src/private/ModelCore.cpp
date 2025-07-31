@@ -53,8 +53,7 @@ static ErrorHandling stringToErrorHandling(const QString& errorStr) {
     static const QHash<QString, ErrorHandling> errorMap = {
         {"show_message", ErrorHandling::ShowMessage},
         {"ignore", ErrorHandling::Ignore},
-        {"log", ErrorHandling::Log},
-        {"callback", ErrorHandling::Callback}
+        {"log", ErrorHandling::Log}
     };
     return errorMap.value(errorStr.toLower(), ErrorHandling::ShowMessage);
 }
@@ -168,7 +167,6 @@ QJsonObject ModelCore::getJsonSchema() const {
         QJsonObject columnObj;
         columnObj["name"] = column.name;
         columnObj["type"] = static_cast<int>(column.type); // You might want to convert to string
-        columnObj["is_visible"] = column.isVisible;
         columnObj["is_editable"] = column.isEditable;
         columnObj["is_primary_key"] = column.isPrimaryKey;
         if (!column.tooltip.isEmpty()) {
@@ -342,9 +340,6 @@ bool ModelCore::parseYaml(const QString& content) {
                     column.type = stringToColumnType(QString::fromStdString(colNode["type"].as<std::string>()));
                 }
                 
-                if (colNode["is_visible"]) {
-                    column.isVisible = colNode["is_visible"].as<bool>();
-                }
                 
                 if (colNode["is_editable"]) {
                     column.isEditable = colNode["is_editable"].as<bool>();
@@ -451,9 +446,6 @@ bool ModelCore::parseYaml(const QString& content) {
         }
 
         // Parse additional settings
-        if (root["callback_is_required"]) {
-            schema->callbackIsRequired = root["callback_is_required"].as<bool>();
-        }
         
         if (root["default_row_tooltip"]) {
             schema->defaultRowTooltip = QString::fromStdString(root["default_row_tooltip"].as<std::string>());
@@ -533,7 +525,6 @@ bool ModelCore::parseJson(const QString& content) {
             
             column.name = colObj["name"].toString();
             column.type = stringToColumnType(colObj["type"].toString());
-            column.isVisible = colObj.value("is_visible").toBool(true);
             column.isEditable = colObj.value("is_editable").toBool(true);
             column.isPrimaryKey = colObj.value("is_primary_key").toBool(false);
             column.tooltip = colObj.value("tooltip").toString();
@@ -614,9 +605,6 @@ bool ModelCore::parseJson(const QString& content) {
     }
     
     // Parse other settings
-    if (root.contains("callback_is_required")) {
-        schema->callbackIsRequired = root["callback_is_required"].toBool();
-    }
     
     if (root.contains("default_row_tooltip")) {
         schema->defaultRowTooltip = root["default_row_tooltip"].toString();

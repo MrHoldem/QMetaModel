@@ -68,11 +68,10 @@ QStringList ModelSchema::validate() const {
     }
     
     // Check horizontal headers count matches visible columns
-    QStringList visibleColumns = getVisibleColumns();
-    if (!horizontalHeaders.isEmpty() && horizontalHeaders.size() != visibleColumns.size()) {
-        errors << QString("Horizontal headers count (%1) doesn't match visible columns count (%2)")
+    if (!horizontalHeaders.isEmpty() && horizontalHeaders.size() != columns.size()) {
+        errors << QString("Horizontal headers count (%1) doesn't match columns count (%2)")
                   .arg(horizontalHeaders.size())
-                  .arg(visibleColumns.size());
+                  .arg(columns.size());
     }
 
     // Check loadQuery exists
@@ -166,9 +165,9 @@ void ModelSchema::addColumn(const Column& column) {
     }
     
     // Update horizontal headers if needed
-    if (column.isVisible && !column.displayName.isEmpty()) {
+    if (!column.displayName.isEmpty()) {
         horizontalHeaders.append(column.displayName);
-    } else if (column.isVisible) {
+    } else {
         horizontalHeaders.append(column.name);
     }
     
@@ -227,20 +226,11 @@ void ModelSchema::removeQuery(const QString& name) {
     modifiedAt = QDateTime::currentDateTime();
 }
 
-QStringList ModelSchema::getVisibleColumns() const {
-    QStringList visibleColumns;
-    for (const auto& column : columns) {
-        if (column.isVisible) {
-            visibleColumns.append(column.name);
-        }
-    }
-    return visibleColumns;
-}
 
 QStringList ModelSchema::getEditableColumns() const {
     QStringList editableColumns;
     for (const auto& column : columns) {
-        if (column.isEditable && column.isVisible) {
+        if (column.isEditable) {
             editableColumns.append(column.name);
         }
     }
@@ -268,10 +258,9 @@ HeaderSettings& HeaderSettings::operator=(const QString& str) {
         return *this;
     }
     
-    // Если строка "invisible"
+    // Если строка "invisible" - больше не поддерживается
     if (str.toLower() == "invisible") {
-        type = HeaderType::Invisible;
-        isVisible = false;
+        // Игнорируем, так как убрали поддержку невидимых заголовков
         return *this;
     }
     
