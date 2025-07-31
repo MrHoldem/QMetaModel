@@ -1,6 +1,6 @@
 # QMetaModel (QForge)
 
-**Declarative Qt data‑model generator (Table & Tree) powered by YAML / JSON DSL.  
+Declarative Qt data‑model generator (Table & Tree) powered by YAML / JSON DSL.  
 
 Stop writing boilerplate Qt models — describe them once, QForge does the rest.**
 
