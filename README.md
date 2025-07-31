@@ -1,12 +1,12 @@
-# QForge
+# QMetaModel (QForge)
 
-**Declarative Qt data‑model generator (Table & Tree) powered by YAML / JSON DSL.  
+Declarative Qt data‑model generator (Table & Tree) powered by YAML / JSON DSL.  
 
 Stop writing boilerplate Qt models — describe them once, QForge does the rest.**
 
 ---
 
-## ✨ Why QForge?
+## Why QForge?
 
 * **No boilerplate** — forget hundreds of lines of `QAbstractItemModel` code.
 
@@ -24,7 +24,7 @@ Stop writing boilerplate Qt models — describe them once, QForge does the rest
 
 ---
 
-## 🔥 Quick start
+## Quick start
 
 ### 1. Install
 ```bash
@@ -153,7 +153,7 @@ csvModel->execute("select_all", {}, /*threaded=*/true);
 
 ---
 
-## 🚀 Threaded execution
+## Threaded execution
 
 * `execute(queryName, args, true)` runs in `QThreadPool`.
 
